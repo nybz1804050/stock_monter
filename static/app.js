@@ -15,6 +15,7 @@
   let rows = [];
 
   const fmt = (v, suffix) => (v === null || v === undefined) ? '--' : Number(v).toFixed(2) + (suffix || '');
+  const history = {};        // code -> 最近价格序列（稀疏更新，避免频繁请求）
   const cls = (direction) => direction === 'up' ? 'up' : direction === 'down' ? 'down' : 'flat';
 
   function render() {
@@ -23,7 +24,7 @@
       !keyword || r.code.toLowerCase().includes(keyword) ||
       (r.name || '').toLowerCase().includes(keyword));
     if (!visible.length) {
-      body.innerHTML = '<tr><td colspan="7" class="empty">' +
+      body.innerHTML = '<tr><td colspan="8" class="empty">' +
         (rows.length ? '没有匹配的股票' : '暂无数据') + '</td></tr>';
       return;
     }
@@ -37,10 +38,48 @@
         '<td class="num ' + c + '">' + fmt(r.pct, '%') + '</td>' +
         '<td class="num ' + c + '">' + fmt(r.chg) + '</td>' +
         '<td class="num">' + star + '</td>' +
+        '<td class="num"><canvas class="spark" width="96" height="24" data-spark="' + r.code + '"></canvas></td>' +
         '<td class="num"><button class="link-btn" data-remove="' + r.code + '">移除</button></td>' +
         '</tr>';
     }).join('');
   }
+
+  function drawSparks() {
+    document.querySelectorAll('canvas[data-spark]').forEach(function (cv) {
+      const points = history[cv.getAttribute('data-spark')] || [];
+      const ctx = cv.getContext('2d');
+      const w = cv.width, h = cv.height;
+      ctx.clearRect(0, 0, w, h);
+      if (points.length < 2) return;
+      const prices = points.map(p => p.price).filter(v => v !== null && v !== undefined);
+      if (prices.length < 2) return;
+      const min = Math.min.apply(null, prices), max = Math.max.apply(null, prices);
+      const span = (max - min) || 1;
+      const rising = prices[prices.length - 1] >= prices[0];
+      ctx.strokeStyle = rising ? '#ff5b5b' : '#35c46a';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      prices.forEach(function (v, i) {
+        const x = (i / (prices.length - 1)) * (w - 2) + 1;
+        const y = h - 2 - ((v - min) / span) * (h - 4);
+        if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+      });
+      ctx.stroke();
+    });
+  }
+
+  async function refreshHistory() {
+    const codes = rows.map(r => r.code);
+    for (const code of codes) {
+      try {
+        const resp = await fetch('/api/history?code=' + code + '&limit=60', { cache: 'no-store' });
+        const data = await resp.json();
+        if (data.ok) history[code] = data.points || [];
+      } catch (e) { /* 忽略，保留下一次机会 */ }
+    }
+    drawSparks();
+  }
+  setInterval(refreshHistory, 60000);
 
   function renderAlerts(alerts) {
     if (!alerts || !alerts.length) {
@@ -117,6 +156,7 @@
     if (data.error) banner.textContent = '⚠ ' + data.error;
     render();
     renderAlerts(data.alerts);
+    drawSparks();
   }
 
   async function tick() {

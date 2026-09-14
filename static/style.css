@@ -109,3 +109,5 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
 .link-btn:hover { color: var(--up); background: #2a1620; }
 
 .head-actions { display: flex; align-items: center; gap: 8px; }
+
+.spark { display: block; width: 96px; height: 24px; }
