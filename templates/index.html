@@ -36,13 +36,29 @@
             <tr>
               <th>代码</th><th>名称</th>
               <th class="num">现价</th><th class="num">涨跌幅</th><th class="num">涨跌额</th>
-              <th class="num">标记</th>
+              <th class="num">标记</th><th class="num">操作</th>
             </tr>
           </thead>
           <tbody id="quote-body">
-            <tr><td colspan="6" class="empty">加载中…</td></tr>
+            <tr><td colspan="7" class="empty">加载中…</td></tr>
           </tbody>
         </table>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="card-head">
+        <h2>自选股管理</h2>
+        <span class="hint">支持 6 位股票代码</span>
+      </div>
+      <div class="watchlist-editor">
+        <form id="add-form" class="add-form" autocomplete="off">
+          <input id="add-code" class="filter" type="text" inputmode="numeric"
+                 maxlength="6" placeholder="输入股票代码，如 600519">
+          <button class="btn" type="submit">添加</button>
+        </form>
+        <p id="add-msg" class="add-msg hidden"></p>
+        <ul id="watchlist" class="chips"></ul>
       </div>
     </section>
 

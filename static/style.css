@@ -84,3 +84,26 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
   display: flex; gap: 8px; justify-content: center; padding: 14px;
   color: var(--muted); font-size: 12px; border-top: 1px solid var(--line);
 }
+
+.watchlist-editor { padding: 12px 16px 16px; }
+.add-form { display: flex; gap: 8px; }
+.add-form .filter { flex: 1; min-width: 0; }
+.add-msg { margin: 10px 0 0; font-size: 12px; color: var(--down); }
+.add-msg.err { color: var(--up); }
+.add-msg.hidden { display: none; }
+.chips { list-style: none; display: flex; flex-wrap: wrap; gap: 8px; margin: 14px 0 0; padding: 0; }
+.chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 5px 8px 5px 10px; border-radius: 999px; font-size: 12px;
+  background: var(--panel-2); border: 1px solid var(--line);
+}
+.chip-x {
+  border: none; background: transparent; color: var(--muted);
+  font-size: 14px; line-height: 1; cursor: pointer; padding: 0 2px;
+}
+.chip-x:hover { color: var(--up); }
+.link-btn {
+  border: none; background: transparent; color: var(--muted);
+  cursor: pointer; font-size: 12px; padding: 2px 6px; border-radius: 6px;
+}
+.link-btn:hover { color: var(--up); background: #2a1620; }

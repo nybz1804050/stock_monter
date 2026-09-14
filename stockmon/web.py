@@ -107,6 +107,28 @@ def create_app(base_dir: str = None, interval: float = 5.0,
     def api_watchlist():
         return jsonify({"codes": watchlist.load(base_dir)})
 
+    @app.post("/api/watchlist")
+    def api_watchlist_add():
+        payload = request.get_json(silent=True) or {}
+        code = str(payload.get("code", "")).strip()
+        try:
+            codes = watchlist.add(code, base_dir)
+        except ValueError as exc:
+            return jsonify({"ok": False, "error": str(exc)}), 400
+        service.refresh_once()          # 新增后立刻拉一次，页面无需等下个周期
+        return jsonify({"ok": True, "codes": codes})
+
+    @app.delete("/api/watchlist/<code>")
+    def api_watchlist_remove(code):
+        codes = watchlist.remove(code, base_dir)
+        service.refresh_once()
+        return jsonify({"ok": True, "codes": codes})
+
+    @app.get("/api/alerts")
+    def api_alerts():
+        snap = service.snapshot()
+        return jsonify({"alerts": snap["alerts"], "threshold": threshold})
+
     @app.get("/api/health")
     def api_health():
         snap = service.snapshot()
