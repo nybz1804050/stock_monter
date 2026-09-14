@@ -1,9 +1,7 @@
-# -*- coding: utf-8 -*-
 """涨跌幅告警：穿越阈值时记录一条，避免同一轮重复刷屏。"""
 import os
 from collections import deque
 from datetime import datetime
-from typing import Deque, Dict, List
 
 from .quotes import Quote
 
@@ -15,14 +13,14 @@ class AlertTracker:
                  memory: int = 200):
         self.threshold = threshold
         self.log_file = log_file
-        self._state: Dict[str, bool] = {}
-        self.recent: Deque[dict] = deque(maxlen=memory)
+        self._state: dict[str, bool] = {}
+        self.recent: deque[dict] = deque(maxlen=memory)
 
-    def check(self, quotes: List[Quote], now: datetime = None) -> List[dict]:
+    def check(self, quotes: list[Quote], now: datetime = None) -> list[dict]:
         """返回本轮新产生的告警列表，并把它们写入日志与内存队列。"""
         now = now or datetime.now()
         stamp = now.strftime("%Y-%m-%d %H:%M:%S")
-        fired: List[dict] = []
+        fired: list[dict] = []
         for q in quotes:
             if q.pct is None:
                 continue
@@ -49,7 +47,7 @@ class AlertTracker:
         except OSError:
             pass
 
-    def as_list(self) -> List[dict]:
+    def as_list(self) -> list[dict]:
         return list(self.recent)
 
     def clear(self) -> None:
@@ -58,7 +56,7 @@ class AlertTracker:
         self._state.clear()
 
 
-def read_history(log_file: str, limit: int = 50) -> List[str]:
+def read_history(log_file: str, limit: int = 50) -> list[str]:
     """读取告警日志的最后 limit 行（文件不存在返回空列表）。"""
     if not log_file or not os.path.exists(log_file):
         return []

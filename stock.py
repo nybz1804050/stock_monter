@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """A 股自选股实时价格监控（双数据源自动切换）—— 极简 GUI 窗口版
 
 数据源：
@@ -13,9 +12,8 @@
 自选股列表在 stocks.txt 里维护，每行一个代码，# 开头为注释。
 """
 import sys
-import time
-from datetime import datetime
 import tkinter as tk
+from datetime import datetime
 from tkinter import ttk
 
 import requests
@@ -126,7 +124,7 @@ def fetch_tencent(codes):
 
 def fetch_quotes(codes):
     """按当前源拉取；连续失败 2 次自动切换数据源。"""
-    for name, fetcher in (
+    for _name, fetcher in (
         (SOURCE["name"], fetch_eastmoney if SOURCE["name"] == "eastmoney" else fetch_tencent),
     ):
         try:
@@ -141,8 +139,8 @@ def fetch_quotes(codes):
                 new = "tencent" if SOURCE["name"] == "eastmoney" else "eastmoney"
                 print(f"[数据源 {SOURCE['name']} 连续失败，切换到 {new}]")
                 SOURCE["name"], SOURCE["fails"] = new, 0
-                raise RuntimeError(f"数据源已切换到 {new}，下一轮用新源重试")
-            raise RuntimeError(f"{SOURCE['name']} 拉取失败：{e}")
+                raise RuntimeError(f"数据源已切换到 {new}，下一轮用新源重试") from e
+            raise RuntimeError(f"{SOURCE['name']} 拉取失败：{e}") from e
 
 def fmt_num(v, suffix=""):
     return "--" if v is None else f"{v:.2f}{suffix}"
@@ -277,7 +275,7 @@ def main():
         sys.exit(1)
 
     root = tk.Tk()
-    app = StockMonitorGUI(root)
+    StockMonitorGUI(root)
     root.mainloop()
 
 

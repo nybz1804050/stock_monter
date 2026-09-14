@@ -1,0 +1,18 @@
+[project]
+name = "stock-monter"
+version = "0.3.0"
+description = "A 股自选股实时行情监控：控制台 + 浏览器看板"
+requires-python = ">=3.9"
+dependencies = ["requests>=2.28", "flask>=3.0"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.ruff]
+line-length = 110
+target-version = "py39"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B"]
+ignore = ["E501", "B008"]

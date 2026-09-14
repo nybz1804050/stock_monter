@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """quotes 模块：字段归一化与涨跌方向。"""
 from stockmon.quotes import Quote, normalize, normalize_all, quote_map
 

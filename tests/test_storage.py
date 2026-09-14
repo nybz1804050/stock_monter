@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """storage 模块：SQLite 历史读写与裁剪。"""
 from stockmon.quotes import Quote
 from stockmon.storage import HistoryStore, open_store

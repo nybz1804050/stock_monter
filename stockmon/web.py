@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """浏览器页面：Flask 应用与 JSON 接口。
 
 后台按固定间隔拉一次行情并缓存，页面只读缓存，避免每个浏览器标签都去打行情接口。
@@ -8,19 +7,17 @@ import logging
 import os
 import queue
 import threading
-import time
 from datetime import datetime
-from typing import List, Optional
+from typing import Optional
 
 from flask import Flask, Response, jsonify, render_template, request
 
-from . import alerts
+from . import alerts, watchlist
 from . import config as config_mod
-from . import watchlist
 from .alerts import AlertTracker
 from .datasource import SourceManager
-from .storage import open_store
 from .quotes import Quote
+from .storage import open_store
 
 log = logging.getLogger(__name__)
 
@@ -38,16 +35,17 @@ class QuoteService:
         self.store = store
         self.history_limit = history_limit
         self._lock = threading.Lock()
-        self._quotes: List[Quote] = []
+        self._quotes: list[Quote] = []
         self._updated_at: Optional[str] = None
         self._error: Optional[str] = None
         self._stop = threading.Event()
         self._thread: Optional[threading.Thread] = None
-        self._subscribers: List[queue.Queue] = []      # SSE 订阅者，每个连接一个队列
+        self._subscribers: list[queue.Queue] = []      # SSE 订阅者，每个连接一个队列
 
     def _log_path(self) -> str:
-        from .watchlist import _base_dir
         import os
+
+        from .watchlist import _base_dir
         return os.path.join(_base_dir(self.base_dir), "alerts.log")
 
     # ---------- 轮询 ----------

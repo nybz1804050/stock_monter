@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """A 股自选股实时价格监控（控制台版）
 
 依赖 stockmon 包：数据源在东财/腾讯之间自动切换，自选股列表见 stocks.json（兼容 stocks.txt）。

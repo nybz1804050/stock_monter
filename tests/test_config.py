@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """config 模块：默认值 / 文件 / 环境变量 / 显式覆盖的优先级。"""
 import json
 

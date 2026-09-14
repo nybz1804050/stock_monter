@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """行情历史存储：把每次快照落到 SQLite，供走势图与接口查询。
 
 只依赖标准库 sqlite3；写入失败不影响行情主流程（调用方自行忽略异常）。
@@ -6,7 +5,7 @@
 import os
 import sqlite3
 import threading
-from typing import Dict, List, Optional
+from typing import Optional
 
 from .quotes import Quote
 
@@ -38,7 +37,7 @@ class HistoryStore:
         self._conn.executescript(SCHEMA)
         self._conn.commit()
 
-    def record(self, quotes: List[Quote], ts: str) -> int:
+    def record(self, quotes: list[Quote], ts: str) -> int:
         """批量写入一轮快照，返回写入条数。"""
         rows = [(ts, q.code, q.name, q.price, q.pct, q.chg, q.source) for q in quotes]
         if not rows:
@@ -50,7 +49,7 @@ class HistoryStore:
             self._conn.commit()
         return len(rows)
 
-    def history(self, code: str, limit: int = 120) -> List[Dict]:
+    def history(self, code: str, limit: int = 120) -> list[dict]:
         """按时间倒序取某只股票最近 limit 条记录（返回时正序，便于画图）。"""
         with self._lock:
             cur = self._conn.execute(
@@ -59,7 +58,7 @@ class HistoryStore:
             rows = cur.fetchall()
         return [{"ts": ts, "price": price, "pct": pct} for ts, price, pct in reversed(rows)]
 
-    def codes(self) -> List[str]:
+    def codes(self) -> list[str]:
         with self._lock:
             cur = self._conn.execute("SELECT DISTINCT code FROM quotes ORDER BY code")
             return [r[0] for r in cur.fetchall()]

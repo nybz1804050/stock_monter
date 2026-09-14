@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """watchlist 与 alerts 模块（离线，使用临时目录）。"""
 import datetime
 import json

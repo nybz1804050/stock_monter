@@ -1,11 +1,10 @@
-# -*- coding: utf-8 -*-
 """行情数据源：东方财富（主）/ 腾讯（备），带连续失败自动切换。
 
 两个数据源都返回 [Quote, ...]；任何异常都向上抛，由 SourceManager 决定是否切换。
 """
 import logging
 import time
-from typing import Callable, Dict, List
+from typing import Callable
 
 import requests
 
@@ -43,7 +42,7 @@ def tencent_code(code: str) -> str:
     return "sz" + code
 
 
-def parse_eastmoney(payload: dict) -> List[dict]:
+def parse_eastmoney(payload: dict) -> list[dict]:
     """解析东财 ulist 返回体（抽成纯函数，便于离线测试）。"""
     diff = (payload.get("data") or {}).get("diff") or []
     if isinstance(diff, dict):          # 单只股票时 diff 是对象
@@ -52,7 +51,7 @@ def parse_eastmoney(payload: dict) -> List[dict]:
              "pct": d.get("f3"), "chg": d.get("f4")} for d in diff]
 
 
-def parse_tencent(text: str) -> List[dict]:
+def parse_tencent(text: str) -> list[dict]:
     """解析腾讯行情文本（v_sh600519="1~贵州茅台~600519~..."; 以 ~ 分隔，GBK 解码后传入）。"""
     out = []
     for line in (text or "").strip().split(";"):
@@ -81,7 +80,7 @@ def _request(url: str, headers: dict, retries: int = RETRIES, backoff: float = B
     raise last_exc
 
 
-def fetch_eastmoney(codes: List[str]) -> List[dict]:
+def fetch_eastmoney(codes: list[str]) -> list[dict]:
     resp = _request(EASTMONEY_URL.format(secids=",".join(eastmoney_secid(c) for c in codes)), HEADERS)
     quotes = normalize_all(parse_eastmoney(resp.json()), source="eastmoney")
     if not quotes:
@@ -89,7 +88,7 @@ def fetch_eastmoney(codes: List[str]) -> List[dict]:
     return quotes
 
 
-def fetch_tencent(codes: List[str]) -> List[dict]:
+def fetch_tencent(codes: list[str]) -> list[dict]:
     resp = _request(TENCENT_URL.format(codes=",".join(tencent_code(c) for c in codes)),
                     {"User-Agent": HEADERS["User-Agent"]})
     quotes = normalize_all(parse_tencent(resp.content.decode("gbk", errors="replace")),
@@ -99,7 +98,7 @@ def fetch_tencent(codes: List[str]) -> List[dict]:
     return quotes
 
 
-FETCHERS: Dict[str, Callable[[List[str]], List[dict]]] = {
+FETCHERS: dict[str, Callable[[list[str]], list[dict]]] = {
     "eastmoney": fetch_eastmoney,
     "tencent": fetch_tencent,
 }
@@ -117,7 +116,7 @@ class SourceManager:
     def backup(self) -> str:
         return "tencent" if self.name == "eastmoney" else "eastmoney"
 
-    def fetch(self, codes: List[str]) -> List[dict]:
+    def fetch(self, codes: list[str]) -> list[dict]:
         """用当前源拉取；失败累计到阈值就切换并抛错，让调用方下一轮用新源。"""
         try:
             quotes = FETCHERS[self.name](codes)

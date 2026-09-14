@@ -1,10 +1,9 @@
-# -*- coding: utf-8 -*-
 """配置层：默认值 < config.json < 环境变量，便于在不同环境调整行为。"""
 import json
 import os
-from typing import Any, Dict
+from typing import Any
 
-DEFAULTS: Dict[str, Any] = {
+DEFAULTS: dict[str, Any] = {
     "interval": 5.0,          # 行情刷新间隔（秒）
     "threshold": 3.0,         # 涨跌幅告警阈值（%）
     "host": "127.0.0.1",
@@ -35,7 +34,7 @@ def _coerce(value: str, default: Any) -> Any:
     return value
 
 
-def load(base_dir: str = None, overrides: Dict[str, Any] = None) -> Dict[str, Any]:
+def load(base_dir: str = None, overrides: dict[str, Any] = None) -> dict[str, Any]:
     """合并配置：默认值 → config.json → 环境变量（STOCKMON_*）→ 显式 overrides。"""
     cfg = dict(DEFAULTS)
 

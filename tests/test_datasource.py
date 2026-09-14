@@ -1,10 +1,8 @@
-# -*- coding: utf-8 -*-
 """datasource 模块：代码映射、报文解析与数据源自动切换（全部离线）。"""
 import pytest
 
 from stockmon import datasource
-from stockmon.datasource import (SourceManager, eastmoney_secid, parse_eastmoney,
-                                 parse_tencent, tencent_code)
+from stockmon.datasource import SourceManager, eastmoney_secid, parse_eastmoney, parse_tencent, tencent_code
 from stockmon.quotes import normalize_all
 
 EASTMONEY_PAYLOAD = {"data": {"diff": [

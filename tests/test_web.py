@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """web 模块：接口行为（不启动后台线程、不访问网络）。"""
 import json
 
@@ -83,12 +82,14 @@ def test_service_reports_error_when_watchlist_empty(tmp_path):
 
 def test_sse_subscribers_receive_snapshots(client):
     """订阅者应在每轮刷新后收到快照；退订后不再收到。"""
-    import queue as _queue
     c, _ = client
     service = None
     # 通过应用上下文取到同一 service 实例
+    import json as _json
+    import os
+    import tempfile
+
     from stockmon.web import create_app
-    import json as _json, tempfile, os
     d = tempfile.mkdtemp()
     open(os.path.join(d, "stocks.json"), "w", encoding="utf-8").write(_json.dumps(["600519"]))
     app = create_app(base_dir=d, autostart=False)
