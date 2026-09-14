@@ -138,6 +138,20 @@
   });
   filterEl.addEventListener('input', render);
 
+  document.getElementById('btn-history').addEventListener('click', async function () {
+    const resp = await fetch('/api/alerts?history=1', { cache: 'no-store' });
+    const data = await resp.json();
+    const history = data.history || [];
+    if (!history.length) { alertList.innerHTML = '<li class="empty">日志里还没有记录</li>'; return; }
+    alertList.innerHTML = history.slice().reverse().map(line =>
+      '<li>' + line + '</li>').join('');
+  });
+
+  document.getElementById('btn-clear').addEventListener('click', async function () {
+    await fetch('/api/alerts', { method: 'DELETE' });
+    renderAlerts([]);
+  });
+
   loadWatchlist();
   tick();
 })();

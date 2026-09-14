@@ -65,7 +65,11 @@
     <section class="card">
       <div class="card-head">
         <h2>涨跌幅告警</h2>
-        <span class="hint">阈值 ±{{ threshold }}%</span>
+        <div class="head-actions">
+          <span class="hint">阈值 ±{{ threshold }}%</span>
+          <button class="link-btn" id="btn-history" type="button">历史</button>
+          <button class="link-btn" id="btn-clear" type="button">清空</button>
+        </div>
       </div>
       <ul id="alert-list" class="alerts">
         <li class="empty">暂无告警</li>

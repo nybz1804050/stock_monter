@@ -12,6 +12,7 @@ from typing import List, Optional
 from flask import Flask, jsonify, render_template, request
 
 from . import watchlist
+from . import alerts
 from .alerts import AlertTracker
 from .datasource import SourceManager
 from .quotes import Quote
@@ -126,8 +127,17 @@ def create_app(base_dir: str = None, interval: float = 5.0,
 
     @app.get("/api/alerts")
     def api_alerts():
+        """会话内告警 + 日志历史（history=1 时带出最近 50 条落盘记录）。"""
         snap = service.snapshot()
-        return jsonify({"alerts": snap["alerts"], "threshold": threshold})
+        payload = {"alerts": snap["alerts"], "threshold": threshold}
+        if request.args.get("history"):
+            payload["history"] = alerts.read_history(service.tracker.log_file, limit=50)
+        return jsonify(payload)
+
+    @app.delete("/api/alerts")
+    def api_alerts_clear():
+        service.tracker.clear()
+        return jsonify({"ok": True})
 
     @app.get("/api/health")
     def api_health():

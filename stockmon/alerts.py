@@ -51,3 +51,20 @@ class AlertTracker:
 
     def as_list(self) -> List[dict]:
         return list(self.recent)
+
+    def clear(self) -> None:
+        """清空内存队列；日志文件保留（历史可查）。"""
+        self.recent.clear()
+        self._state.clear()
+
+
+def read_history(log_file: str, limit: int = 50) -> List[str]:
+    """读取告警日志的最后 limit 行（文件不存在返回空列表）。"""
+    if not log_file or not os.path.exists(log_file):
+        return []
+    try:
+        with open(log_file, encoding="utf-8", errors="replace") as f:
+            lines = [ln.rstrip() for ln in f if ln.strip()]
+        return lines[-limit:]
+    except OSError:
+        return []
