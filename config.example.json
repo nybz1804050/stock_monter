@@ -1,0 +1,7 @@
+{
+  "interval": 5.0,
+  "threshold": 3.0,
+  "host": "127.0.0.1",
+  "port": 8000,
+  "retries": 2
+}

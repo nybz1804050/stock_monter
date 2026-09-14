@@ -11,8 +11,9 @@ from typing import List, Optional
 
 from flask import Flask, jsonify, render_template, request
 
-from . import watchlist
 from . import alerts
+from . import config as config_mod
+from . import watchlist
 from .alerts import AlertTracker
 from .datasource import SourceManager
 from .quotes import Quote
@@ -87,8 +88,12 @@ class QuoteService:
             }
 
 
-def create_app(base_dir: str = None, interval: float = 5.0,
-               threshold: float = 3.0, autostart: bool = True) -> Flask:
+def create_app(base_dir: str = None, interval: float = None,
+               threshold: float = None, autostart: bool = True,
+               config: dict = None) -> Flask:
+    cfg = config or config_mod.load(base_dir, {"interval": interval, "threshold": threshold})
+    interval = cfg["interval"]
+    threshold = cfg["threshold"]
     app = Flask(__name__, template_folder="../templates", static_folder="../static")
     service = QuoteService(base_dir=base_dir, interval=interval, threshold=threshold)
     app.config["SERVICE"] = service
