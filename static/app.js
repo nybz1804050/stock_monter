@@ -13,16 +13,30 @@
   const pillTime = document.getElementById('pill-time');
   const pillCountdown = document.getElementById('pill-countdown');
   let rows = [];
+  let sortKey = null;        // 当前排序字段
+  let sortAsc = false;       // 升降序（点表头切换）
 
   const fmt = (v, suffix) => (v === null || v === undefined) ? '--' : Number(v).toFixed(2) + (suffix || '');
   const history = {};        // code -> 最近价格序列（稀疏更新，避免频繁请求）
   const cls = (direction) => direction === 'up' ? 'up' : direction === 'down' ? 'down' : 'flat';
 
+  function sortRows(list) {
+    if (!sortKey) return list;
+    const dir = sortAsc ? 1 : -1;
+    return list.slice().sort(function (a, b) {
+      const va = a[sortKey], vb = b[sortKey];
+      if (va === null || va === undefined) return 1;      // 无值排最后
+      if (vb === null || vb === undefined) return -1;
+      if (typeof va === 'number' && typeof vb === 'number') return (va - vb) * dir;
+      return String(va).localeCompare(String(vb)) * dir;
+    });
+  }
+
   function render() {
     const keyword = (filterEl.value || '').trim().toLowerCase();
-    const visible = rows.filter(r =>
+    const visible = sortRows(rows.filter(r =>
       !keyword || r.code.toLowerCase().includes(keyword) ||
-      (r.name || '').toLowerCase().includes(keyword));
+      (r.name || '').toLowerCase().includes(keyword)));
     if (!visible.length) {
       body.innerHTML = '<tr><td colspan="8" class="empty">' +
         (rows.length ? '没有匹配的股票' : '暂无数据') + '</td></tr>';
@@ -199,6 +213,17 @@
     }
     if (!streamOk) pillCountdown.textContent = left + 's 后刷新';
   }, 1000);
+
+  document.querySelectorAll('th.sortable').forEach(function (th) {
+    th.addEventListener('click', function () {
+      const key = th.getAttribute('data-sort');
+      if (sortKey === key) { sortAsc = !sortAsc; } else { sortKey = key; sortAsc = (key === 'code' || key === 'name'); }
+      document.querySelectorAll('th.sortable').forEach(function (x) { x.classList.remove('asc', 'desc'); });
+      th.classList.add(sortAsc ? 'asc' : 'desc');
+      render();
+      drawSparks();
+    });
+  });
 
   document.getElementById('btn-refresh').addEventListener('click', function () {
     left = interval; tick();

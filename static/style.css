@@ -111,3 +111,8 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
 .head-actions { display: flex; align-items: center; gap: 8px; }
 
 .spark { display: block; width: 96px; height: 24px; }
+
+th.sortable { cursor: pointer; user-select: none; }
+th.sortable:hover { color: var(--text); }
+th.sortable.asc::after { content: " ▲"; font-size: 10px; }
+th.sortable.desc::after { content: " ▼"; font-size: 10px; }
