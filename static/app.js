@@ -109,28 +109,55 @@
     }
   });
 
+  function apply(data) {
+    rows = data.quotes || [];
+    pillSource.textContent = '数据源 ' + (data.source || '--');
+    pillTime.textContent = '更新 ' + (data.time || '--');
+    banner.classList.toggle('hidden', !data.error);
+    if (data.error) banner.textContent = '⚠ ' + data.error;
+    render();
+    renderAlerts(data.alerts);
+  }
+
   async function tick() {
     try {
       const resp = await fetch('/api/quotes', { cache: 'no-store' });
-      const data = await resp.json();
-      rows = data.quotes || [];
-      pillSource.textContent = '数据源 ' + (data.source || '--');
-      pillTime.textContent = '更新 ' + (data.time || '--');
-      banner.classList.toggle('hidden', !data.error);
-      if (data.error) banner.textContent = '⚠ ' + data.error;
-      render();
-      renderAlerts(data.alerts);
+      apply(await resp.json());
     } catch (err) {
       banner.classList.remove('hidden');
       banner.textContent = '⚠ 无法连接服务：' + err;
     }
   }
 
+  // 优先用 SSE 实时推送；不可用时自动退回定时轮询
+  let stream = null;
+  let streamOk = false;
+  function connectStream() {
+    if (!window.EventSource) return;
+    try {
+      stream = new EventSource('/api/stream');
+    } catch (e) { return; }
+    stream.onmessage = function (ev) {
+      streamOk = true;
+      pillCountdown.textContent = '实时推送';
+      try { apply(JSON.parse(ev.data)); } catch (e) { /* 忽略坏帧 */ }
+    };
+    stream.onerror = function () {
+      streamOk = false;
+      if (stream) { stream.close(); stream = null; }
+      setTimeout(connectStream, 15000);      // 稍后重连，期间走轮询
+    };
+  }
+  connectStream();
+
   let left = interval;
   setInterval(function () {
     left -= 1;
-    if (left <= 0) { left = interval; tick(); }
-    pillCountdown.textContent = left + 's 后刷新';
+    if (left <= 0) {
+      left = interval;
+      if (!streamOk) tick();                 // SSE 正常时不再重复拉取
+    }
+    if (!streamOk) pillCountdown.textContent = left + 's 后刷新';
   }, 1000);
 
   document.getElementById('btn-refresh').addEventListener('click', function () {

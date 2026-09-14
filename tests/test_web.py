@@ -79,3 +79,27 @@ def test_service_reports_error_when_watchlist_empty(tmp_path):
     service = QuoteService(base_dir=str(tmp_path), manager=FakeManager())
     service.refresh_once()
     assert service.snapshot()["error"] == "自选股列表为空"
+
+
+def test_sse_subscribers_receive_snapshots(client):
+    """订阅者应在每轮刷新后收到快照；退订后不再收到。"""
+    import queue as _queue
+    c, _ = client
+    service = None
+    # 通过应用上下文取到同一 service 实例
+    from stockmon.web import create_app
+    import json as _json, tempfile, os
+    d = tempfile.mkdtemp()
+    open(os.path.join(d, "stocks.json"), "w", encoding="utf-8").write(_json.dumps(["600519"]))
+    app = create_app(base_dir=d, autostart=False)
+    service = app.config["SERVICE"]
+    service.manager = FakeManager()
+
+    q = service.subscribe()
+    service.refresh_once()
+    frame = q.get(timeout=2)
+    assert frame["quotes"][0]["code"] == "600519"
+
+    service.unsubscribe(q)
+    service.refresh_once()
+    assert q.empty()

@@ -3,14 +3,16 @@
 
 后台按固定间隔拉一次行情并缓存，页面只读缓存，避免每个浏览器标签都去打行情接口。
 """
+import json
 import logging
 import os
+import queue
 import threading
 import time
 from datetime import datetime
 from typing import List, Optional
 
-from flask import Flask, jsonify, render_template, request
+from flask import Flask, Response, jsonify, render_template, request
 
 from . import alerts
 from . import config as config_mod
@@ -41,6 +43,7 @@ class QuoteService:
         self._error: Optional[str] = None
         self._stop = threading.Event()
         self._thread: Optional[threading.Thread] = None
+        self._subscribers: List[queue.Queue] = []      # SSE 订阅者，每个连接一个队列
 
     def _log_path(self) -> str:
         from .watchlist import _base_dir
@@ -67,6 +70,7 @@ class QuoteService:
                 self._quotes = quotes
                 self._updated_at = stamp
                 self._error = None
+            self._broadcast()
         except Exception as exc:      # noqa: BLE001
             with self._lock:
                 self._error = str(exc)
@@ -85,6 +89,29 @@ class QuoteService:
 
     def stop(self) -> None:
         self._stop.set()
+
+    # ---------- SSE 订阅 ----------
+    def subscribe(self) -> queue.Queue:
+        q: queue.Queue = queue.Queue(maxsize=8)
+        with self._lock:
+            self._subscribers.append(q)
+        return q
+
+    def unsubscribe(self, q: queue.Queue) -> None:
+        with self._lock:
+            if q in self._subscribers:
+                self._subscribers.remove(q)
+
+    def _broadcast(self) -> None:
+        """把最新快照推给所有订阅者；队列满说明该连接太慢，丢弃这一帧即可。"""
+        payload = self.snapshot()
+        with self._lock:
+            subscribers = list(self._subscribers)
+        for q in subscribers:
+            try:
+                q.put_nowait(payload)
+            except queue.Full:
+                pass
 
     # ---------- 快照 ----------
     def snapshot(self) -> dict:
@@ -158,6 +185,26 @@ def create_app(base_dir: str = None, interval: float = None,
     def api_alerts_clear():
         service.tracker.clear()
         return jsonify({"ok": True})
+
+    @app.get("/api/stream")
+    def api_stream():
+        """SSE 实时推送：每轮刷新推一帧快照，15 秒无数据发一次心跳。"""
+        def gen():
+            q = service.subscribe()
+            try:
+                yield "retry: 3000\n\n"
+                while True:
+                    try:
+                        payload = q.get(timeout=15)
+                    except queue.Empty:
+                        yield ": keep-alive\n\n"
+                        continue
+                    yield "data: " + json.dumps(payload, ensure_ascii=False) + "\n\n"
+            finally:
+                service.unsubscribe(q)
+
+        return Response(gen(), mimetype="text/event-stream",
+                        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
 
     @app.get("/api/history")
     def api_history():
