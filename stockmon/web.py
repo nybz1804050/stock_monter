@@ -4,6 +4,7 @@
 后台按固定间隔拉一次行情并缓存，页面只读缓存，避免每个浏览器标签都去打行情接口。
 """
 import logging
+import os
 import threading
 import time
 from datetime import datetime
@@ -16,6 +17,7 @@ from . import config as config_mod
 from . import watchlist
 from .alerts import AlertTracker
 from .datasource import SourceManager
+from .storage import open_store
 from .quotes import Quote
 
 log = logging.getLogger(__name__)
@@ -25,11 +27,14 @@ class QuoteService:
     """后台轮询行情并缓存结果；线程安全（只用一个锁保护快照）。"""
 
     def __init__(self, base_dir: str = None, interval: float = 5.0,
-                 threshold: float = 3.0, manager: SourceManager = None):
+                 threshold: float = 3.0, manager: SourceManager = None,
+                 store=None, history_limit: int = 500):
         self.base_dir = base_dir
         self.interval = interval
         self.manager = manager or SourceManager()
         self.tracker = AlertTracker(threshold=threshold, log_file=self._log_path())
+        self.store = store
+        self.history_limit = history_limit
         self._lock = threading.Lock()
         self._quotes: List[Quote] = []
         self._updated_at: Optional[str] = None
@@ -52,9 +57,15 @@ class QuoteService:
         try:
             quotes = self.manager.fetch(codes)
             self.tracker.check(quotes)
+            stamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            if self.store is not None:            # 历史落盘失败不影响行情
+                try:
+                    self.store.record(quotes, stamp)
+                except Exception:                 # noqa: BLE001
+                    log.warning("写入行情历史失败", exc_info=True)
             with self._lock:
                 self._quotes = quotes
-                self._updated_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                self._updated_at = stamp
                 self._error = None
         except Exception as exc:      # noqa: BLE001
             with self._lock:
@@ -94,8 +105,12 @@ def create_app(base_dir: str = None, interval: float = None,
     cfg = config or config_mod.load(base_dir, {"interval": interval, "threshold": threshold})
     interval = cfg["interval"]
     threshold = cfg["threshold"]
+    db_path = cfg.get("db_path")
+    if db_path and base_dir and not os.path.isabs(db_path):
+        db_path = os.path.join(base_dir, db_path)
     app = Flask(__name__, template_folder="../templates", static_folder="../static")
-    service = QuoteService(base_dir=base_dir, interval=interval, threshold=threshold)
+    service = QuoteService(base_dir=base_dir, interval=interval, threshold=threshold,
+                           store=open_store(db_path), history_limit=cfg.get("history_limit", 500))
     app.config["SERVICE"] = service
     if autostart:
         service.start()
@@ -143,6 +158,18 @@ def create_app(base_dir: str = None, interval: float = None,
     def api_alerts_clear():
         service.tracker.clear()
         return jsonify({"ok": True})
+
+    @app.get("/api/history")
+    def api_history():
+        """某只股票最近的价格序列（默认 120 条），用于前端走势图。"""
+        code = (request.args.get("code") or "").strip()
+        limit = int(request.args.get("limit") or 120)
+        if not watchlist.is_valid_code(code):
+            return jsonify({"ok": False, "error": "code 必须是 6 位数字"}), 400
+        store = service.store
+        if store is None:
+            return jsonify({"ok": False, "error": "历史存储未启用"}), 503
+        return jsonify({"ok": True, "code": code, "points": store.history(code, limit)})
 
     @app.get("/api/health")
     def api_health():
