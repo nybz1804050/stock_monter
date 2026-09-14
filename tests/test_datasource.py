@@ -96,3 +96,36 @@ def test_source_manager_resets_failure_counter_on_success(monkeypatch):
     state["fail"] = False
     assert mgr.fetch(["600519"]) == ["ok"]
     assert mgr.fails == 0
+
+
+def test_request_retries_then_succeeds(monkeypatch):
+    """瞬时网络错误应重试；成功即返回，不再多余请求。"""
+    import requests as _rq
+    calls = {"n": 0}
+
+    class FakeResp:
+        status_code = 200
+
+    def fake_get(url, headers=None, timeout=None):
+        calls["n"] += 1
+        if calls["n"] == 1:
+            raise _rq.ConnectionError("temporary")
+        return FakeResp()
+
+    monkeypatch.setattr(datasource.requests, "get", fake_get)
+    monkeypatch.setattr(datasource.time, "sleep", lambda *_: None)
+    resp = datasource._request("http://example.invalid", {}, retries=1)
+    assert resp.status_code == 200 and calls["n"] == 2
+
+
+def test_request_raises_after_retries_exhausted(monkeypatch):
+    import pytest as _pytest
+    import requests as _rq
+
+    def always_fail(url, headers=None, timeout=None):
+        raise _rq.Timeout("down")
+
+    monkeypatch.setattr(datasource.requests, "get", always_fail)
+    monkeypatch.setattr(datasource.time, "sleep", lambda *_: None)
+    with _pytest.raises(_rq.Timeout):
+        datasource._request("http://example.invalid", {}, retries=2)

@@ -4,6 +4,7 @@
 两个数据源都返回 [Quote, ...]；任何异常都向上抛，由 SourceManager 决定是否切换。
 """
 import logging
+import time
 from typing import Callable, Dict, List
 
 import requests
@@ -24,6 +25,8 @@ HEADERS = {
 }
 TIMEOUT = 6
 FAILS_TO_SWITCH = 2      # 连续失败几次后切换数据源
+RETRIES = 1              # 单个数据源内部的瞬时失败重试次数
+BACKOFF = 0.5            # 重试前等待秒数（线性退避）
 
 
 def eastmoney_secid(code: str) -> str:
@@ -64,9 +67,22 @@ def parse_tencent(text: str) -> List[dict]:
     return out
 
 
+def _request(url: str, headers: dict, retries: int = RETRIES, backoff: float = BACKOFF):
+    """带重试与线性退避的 GET：网络类异常才重试，最后一次仍失败则抛出。"""
+    last_exc = None
+    for attempt in range(retries + 1):
+        try:
+            return requests.get(url, headers=headers, timeout=TIMEOUT)
+        except requests.RequestException as exc:      # 连接/超时类问题值得重试
+            last_exc = exc
+            if attempt < retries:
+                log.debug("请求失败（第 %d 次），%.1fs 后重试：%s", attempt + 1, backoff * (attempt + 1), exc)
+                time.sleep(backoff * (attempt + 1))
+    raise last_exc
+
+
 def fetch_eastmoney(codes: List[str]) -> List[dict]:
-    resp = requests.get(EASTMONEY_URL.format(secids=",".join(eastmoney_secid(c) for c in codes)),
-                        headers=HEADERS, timeout=TIMEOUT)
+    resp = _request(EASTMONEY_URL.format(secids=",".join(eastmoney_secid(c) for c in codes)), HEADERS)
     quotes = normalize_all(parse_eastmoney(resp.json()), source="eastmoney")
     if not quotes:
         raise ValueError("eastmoney 返回空数据")
@@ -74,8 +90,8 @@ def fetch_eastmoney(codes: List[str]) -> List[dict]:
 
 
 def fetch_tencent(codes: List[str]) -> List[dict]:
-    resp = requests.get(TENCENT_URL.format(codes=",".join(tencent_code(c) for c in codes)),
-                        headers={"User-Agent": HEADERS["User-Agent"]}, timeout=TIMEOUT)
+    resp = _request(TENCENT_URL.format(codes=",".join(tencent_code(c) for c in codes)),
+                    {"User-Agent": HEADERS["User-Agent"]})
     quotes = normalize_all(parse_tencent(resp.content.decode("gbk", errors="replace")),
                            source="tencent")
     if not quotes:
