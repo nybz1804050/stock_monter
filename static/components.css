@@ -1,0 +1,69 @@
+/* 组件层：卡片、行情表、告警面板、自选股标签、迷你走势图。
+   只消费 base.css 定义的变量，不引入新的硬编码色值。 */
+
+/* ---------- 卡片 ---------- */
+.card {
+  background: var(--panel); border: 1px solid var(--line);
+  border-radius: var(--radius); overflow: hidden;
+}
+.card-head {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 12px; padding: 14px 16px; border-bottom: 1px solid var(--line);
+}
+.card-head h2 { margin: 0; font-size: 15px; }
+.head-actions { display: flex; align-items: center; gap: 8px; }
+
+/* ---------- 提示条 ---------- */
+.banner { padding: 10px 16px; font-size: 13px; color: var(--banner-fg); background: var(--banner-bg); }
+
+/* ---------- 行情表 ---------- */
+.table-wrap { overflow: auto; max-height: 62vh; }
+table { width: 100%; border-collapse: collapse; }
+th, td { padding: 10px 14px; text-align: left; white-space: nowrap; }
+thead th {
+  position: sticky; top: 0; background: var(--panel-2); z-index: 1;
+  font-size: 12px; color: var(--muted); font-weight: 600;
+}
+tbody tr { border-top: 1px solid var(--line); }
+tbody tr:hover { background: var(--row-hover); }
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+
+.up { color: var(--up); }
+.down { color: var(--down); }
+.flat { color: var(--muted); }
+.star { color: var(--star); }
+
+th.sortable { cursor: pointer; user-select: none; }
+th.sortable:hover { color: var(--text); }
+th.sortable.asc::after { content: " ▲"; font-size: 10px; }
+th.sortable.desc::after { content: " ▼"; font-size: 10px; }
+
+/* 迷你走势图 */
+.spark { display: block; width: 96px; height: 24px; }
+
+/* ---------- 告警面板 ---------- */
+.alerts { list-style: none; margin: 0; padding: 8px 12px 14px; }
+.alerts li {
+  padding: 8px 10px; border-radius: var(--radius-sm); margin-top: 8px;
+  background: var(--panel-2); border-left: 3px solid var(--warn); font-size: 13px;
+}
+.alerts li.up { border-left-color: var(--up); }
+.alerts li.down { border-left-color: var(--down); }
+
+/* ---------- 自选股编辑 ---------- */
+.watchlist-editor { padding: 12px 16px 16px; }
+.add-form { display: flex; gap: 8px; }
+.add-form .filter { flex: 1; min-width: 0; }
+.add-msg { margin: 10px 0 0; font-size: 12px; color: var(--down); }
+.add-msg.err { color: var(--up); }
+.chips { list-style: none; display: flex; flex-wrap: wrap; gap: 8px; margin: 14px 0 0; padding: 0; }
+.chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 5px 8px 5px 10px; border-radius: 999px; font-size: 12px;
+  background: var(--panel-2); border: 1px solid var(--line);
+}
+.chip-x {
+  border: none; background: transparent; color: var(--muted);
+  font-size: 14px; line-height: 1; cursor: pointer; padding: 0 2px;
+}
+.chip-x:hover { color: var(--up); }

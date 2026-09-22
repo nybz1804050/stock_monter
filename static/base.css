@@ -1,0 +1,101 @@
+/* 基础层：设计变量、重置与页面骨架（顶栏、栅格、页脚）。
+
+   颜色一律走变量，不在这里写死具体色值 —— 亮色主题在 theme.css 里
+   覆盖同名变量即可整套换肤，组件规则无需改动。 */
+
+:root {
+  --bg: #0f1420;
+  --panel: #171e2e;
+  --panel-2: #1e2739;
+  --text: #e8edf7;
+  --muted: #8b97ad;
+  --line: #26314a;
+  --up: #ff5b5b;
+  --down: #35c46a;
+  --accent: #4d8dff;
+
+  /* 主题相关的派生色（亮色主题会整体换掉） */
+  --topbar-from: #182034;
+  --topbar-to: #131a29;
+  --row-hover: #1b2436;
+  --banner-bg: #2a2413;
+  --banner-fg: #ffcf5b;
+  --warn: #ffcf5b;
+  --warn-border: #6b5a22;
+  --star: #ffcf5b;
+  --danger-bg: #2a1620;
+  --btn-fg: #ffffff;
+
+  --radius: 12px;
+  --radius-sm: 8px;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 14px/1.5 "Segoe UI", "Microsoft YaHei", system-ui, sans-serif;
+  transition: background .18s ease, color .18s ease;
+}
+
+/* ---------- 顶栏 ---------- */
+.topbar {
+  display: flex; flex-wrap: wrap; gap: 16px;
+  align-items: center; justify-content: space-between;
+  padding: 18px 24px; border-bottom: 1px solid var(--line);
+  background: linear-gradient(180deg, var(--topbar-from), var(--topbar-to));
+}
+.brand { display: flex; align-items: center; gap: 12px; }
+.logo { font-size: 28px; }
+h1 { margin: 0; font-size: 20px; letter-spacing: .5px; }
+.subtitle { margin: 2px 0 0; color: var(--muted); font-size: 12px; }
+.status { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.pill {
+  padding: 6px 10px; border-radius: 999px; font-size: 12px;
+  background: var(--panel-2); color: var(--muted); border: 1px solid var(--line);
+}
+.pill.warn { color: var(--warn); border-color: var(--warn-border); }
+
+/* ---------- 主体栅格 ---------- */
+main {
+  display: grid; gap: 18px; padding: 20px 24px 40px;
+  grid-template-columns: minmax(0, 2fr) minmax(280px, 1fr);
+}
+@media (max-width: 900px) { main { grid-template-columns: 1fr; } }
+
+/* ---------- 页脚 ---------- */
+.footer {
+  display: flex; gap: 8px; justify-content: center; padding: 14px;
+  color: var(--muted); font-size: 12px; border-top: 1px solid var(--line);
+}
+
+/* ---------- 通用控件 ---------- */
+.btn {
+  padding: 7px 14px; border-radius: var(--radius-sm); cursor: pointer;
+  background: var(--accent); color: var(--btn-fg); border: none; font-size: 13px;
+}
+.btn:hover { filter: brightness(1.08); }
+.btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.link-btn {
+  border: none; background: transparent; color: var(--muted);
+  cursor: pointer; font-size: 12px; padding: 2px 6px; border-radius: 6px;
+}
+.link-btn:hover { color: var(--up); background: var(--danger-bg); }
+
+.filter {
+  background: var(--panel-2); border: 1px solid var(--line); color: var(--text);
+  border-radius: var(--radius-sm); padding: 7px 10px; font-size: 13px; min-width: 200px;
+}
+.filter:focus { outline: none; border-color: var(--accent); }
+
+.hint { color: var(--muted); font-size: 12px; }
+.empty { color: var(--muted); text-align: center; padding: 26px 0; }
+.hidden { display: none; }
+
+/* 无障碍：尊重系统的"减少动效"设置 */
+@media (prefers-reduced-motion: reduce) {
+  body { transition: none; }
+}

@@ -1,0 +1,37 @@
+/* 主题层：只覆盖变量。
+   默认（无 data-theme 或 data-theme="dark"）沿用 base.css 的深色配色；
+   切到亮色时由 <html data-theme="light"> 触发下面这组覆盖。 */
+
+:root[data-theme="light"] {
+  --bg: #f4f6fb;
+  --panel: #ffffff;
+  --panel-2: #eef2f9;
+  --text: #1b2434;
+  --muted: #66738c;
+  --line: #d9e0ee;
+  --up: #d92b2b;
+  --down: #17914a;
+  --accent: #2f6fe4;
+
+  --topbar-from: #ffffff;
+  --topbar-to: #eaf0fa;
+  --row-hover: #f0f5ff;
+  --banner-bg: #fff6e0;
+  --banner-fg: #8a6100;
+  --warn: #b8860b;
+  --warn-border: #e6cf9a;
+  --star: #e0a800;
+  --danger-bg: #fdecec;
+  --btn-fg: #ffffff;
+}
+
+/* 切主题时表格整行/表头跟着过渡，避免生硬跳变 */
+:root[data-theme="light"] .topbar { box-shadow: 0 1px 0 var(--line); }
+
+/* 主题切换按钮：图标由 theme.js 写入（☾ 深色 / ☀ 亮色） */
+#btn-theme {
+  padding: 6px 11px; border-radius: 999px; font-size: 14px;
+  background: var(--panel-2); color: var(--text); border: 1px solid var(--line);
+  cursor: pointer; line-height: 1;
+}
+#btn-theme:hover { border-color: var(--accent); }

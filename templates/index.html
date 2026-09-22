@@ -4,7 +4,10 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>自选股行情看板</title>
-  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='base.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='components.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='theme.css') }}">
+  <script src="{{ url_for('static', filename='theme.js') }}"></script>
 </head>
 <body>
   <header class="topbar">
@@ -20,6 +23,7 @@
       <span class="pill" id="pill-time">更新 --</span>
       <span class="pill" id="pill-countdown">--s 后刷新</span>
       <button class="btn" id="btn-refresh" type="button">立即刷新</button>
+      <button id="btn-theme" type="button" title="切换主题">☾</button>
     </div>
   </header>
 
