@@ -106,6 +106,52 @@ def test_api_history_rejects_bad_code(client):
     assert c.get("/api/history?code=abc").status_code == 400
 
 
+def test_api_indicators_computes_series(client):
+    """指标接口基于历史库计算，序列长度应与返回的样本数一致。"""
+    c, _ = client
+    data = c.get("/api/indicators?code=600519&name=sma&window=1").get_json()
+    assert data["ok"] is True and data["name"] == "sma"
+    assert data["count"] >= 1
+    assert len(data["series"]["values"]) == data["count"]
+
+
+def test_api_indicators_macd_returns_three_series(client):
+    c, _ = client
+    data = c.get("/api/indicators?code=600519&name=macd").get_json()
+    assert data["ok"] is True
+    assert set(data["series"]) == {"dif", "dea", "hist"}
+
+
+def test_api_indicators_rejects_unknown_name(client):
+    c, _ = client
+    resp = c.get("/api/indicators?code=600519&name=kdj")
+    assert resp.status_code == 400 and "不支持" in resp.get_json()["error"]
+
+
+def test_api_indicators_rejects_bad_code(client):
+    c, _ = client
+    assert c.get("/api/indicators?code=abc&name=sma").status_code == 400
+
+
+def test_api_indicators_rejects_non_integer_param(client):
+    c, _ = client
+    assert c.get("/api/indicators?code=600519&name=sma&window=abc").status_code == 400
+
+
+def test_api_indicators_rejects_out_of_range_param(client):
+    """窗口开得过大或为 0 都应被挡在计算之前。"""
+    c, _ = client
+    assert c.get("/api/indicators?code=600519&name=sma&window=0").status_code == 400
+    assert c.get("/api/indicators?code=600519&name=sma&window=9999").status_code == 400
+
+
+def test_api_indicators_ignores_unknown_querystring(client):
+    """白名单之外的参数名不应影响结果（也不应报错）。"""
+    c, _ = client
+    data = c.get("/api/indicators?code=600519&name=sma&window=1&evil=1").get_json()
+    assert data["ok"] is True and "evil" not in data["params"]
+
+
 def test_service_reports_error_when_watchlist_empty(tmp_path):
     (tmp_path / "stocks.json").write_text("[]", encoding="utf-8")
     service = QuoteService(base_dir=str(tmp_path), manager=FakeManager())

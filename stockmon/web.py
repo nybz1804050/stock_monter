@@ -12,7 +12,7 @@ from typing import Optional
 
 from flask import Flask, Response, jsonify, render_template, request
 
-from . import alerts, watchlist
+from . import alerts, indicators, watchlist
 from . import config as config_mod
 from .alerts import AlertTracker
 from .datasource import SourceManager
@@ -23,6 +23,21 @@ log = logging.getLogger(__name__)
 
 # 单次历史查询的返回条数上限：防止 limit 传入超大值把整张表拉进内存。
 HISTORY_LIMIT_MAX = 2000
+
+# 指标参数的取值范围：下限 1，上限防止窗口开得过大导致一次请求算太久。
+INDICATOR_PARAM_MAX = 500
+INDICATOR_PARAMS = ("window", "period", "fast", "slow", "signal", "num_std")
+
+
+def _parse_limit(raw, default: int = 120) -> int:
+    """把 querystring 的 limit 转成合法条数；非法时抛 ValueError（调用方转 400）。"""
+    try:
+        value = int(raw if raw not in (None, "") else default)
+    except (TypeError, ValueError):
+        raise ValueError("limit 必须是整数") from None
+    if value < 1:
+        raise ValueError("limit 必须大于 0")
+    return min(value, HISTORY_LIMIT_MAX)
 
 
 class QuoteService:
@@ -216,16 +231,53 @@ def create_app(base_dir: str = None, interval: float = None,
             return jsonify({"ok": False, "error": "code 必须是 6 位数字"}), 400
         # limit 以前直接 int() 转换：非数字会抛 ValueError（500），超大值会一次拉爆内存。
         try:
-            limit = int(request.args.get("limit") or 120)
-        except (TypeError, ValueError):
-            return jsonify({"ok": False, "error": "limit 必须是整数"}), 400
-        if limit < 1:
-            return jsonify({"ok": False, "error": "limit 必须大于 0"}), 400
-        limit = min(limit, HISTORY_LIMIT_MAX)
+            limit = _parse_limit(request.args.get("limit"))
+        except ValueError as exc:
+            return jsonify({"ok": False, "error": str(exc)}), 400
         store = service.store
         if store is None:
             return jsonify({"ok": False, "error": "历史存储未启用"}), 503
         return jsonify({"ok": True, "code": code, "points": store.history(code, limit)})
+
+    @app.get("/api/indicators")
+    def api_indicators():
+        """按需计算某只股票的技术指标，数据取自本地历史库。
+
+        参数：code 必填；name 见 indicators.SUPPORTED；window/period/... 按指标取值；
+        limit 控制参与计算的最近样本数（与 /api/history 同口径）。
+        """
+        code = (request.args.get("code") or "").strip()
+        if not watchlist.is_valid_code(code):
+            return jsonify({"ok": False, "error": "code 必须是 6 位数字"}), 400
+        name = (request.args.get("name") or "").strip().lower()
+        store = service.store
+        if store is None:
+            return jsonify({"ok": False, "error": "历史存储未启用"}), 503
+        try:
+            limit = _parse_limit(request.args.get("limit"), default=120)
+        except ValueError as exc:
+            return jsonify({"ok": False, "error": str(exc)}), 400
+        # 只认白名单里的参数名，避免任意 querystring 被透传进计算函数
+        params = {}
+        for key in INDICATOR_PARAMS:
+            raw = request.args.get(key)
+            if raw in (None, ""):
+                continue
+            try:
+                params[key] = int(raw)
+            except (TypeError, ValueError):
+                return jsonify({"ok": False, "error": f"{key} 必须是整数"}), 400
+            if not 1 <= params[key] <= INDICATOR_PARAM_MAX:
+                return jsonify({"ok": False,
+                                "error": f"{key} 必须在 1~{INDICATOR_PARAM_MAX} 之间"}), 400
+        points = store.history(code, limit)
+        try:
+            series = indicators.compute(name, [p["price"] for p in points], **params)
+        except ValueError as exc:
+            return jsonify({"ok": False, "error": str(exc)}), 400
+        return jsonify({"ok": True, "code": code, "name": name,
+                        "params": params, "count": len(points),
+                        "ts": [p["ts"] for p in points], "series": series})
 
     @app.get("/api/health")
     def api_health():
