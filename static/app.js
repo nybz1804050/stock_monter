@@ -20,6 +20,14 @@
   const history = {};        // code -> 最近价格序列（稀疏更新，避免频繁请求）
   const cls = (direction) => direction === 'up' ? 'up' : direction === 'down' ? 'down' : 'flat';
 
+  /* 所有拼进 innerHTML 的动态内容都要先转义：股票名来自外部接口、告警日志来自本地文件，
+     直接拼接会让特殊字符（< > " '）有机会变成标签或脚本。 */
+  const escapeHtml = (v) => String(v === null || v === undefined ? '' : v)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+
+  let threshold = (window.APP_CONFIG && window.APP_CONFIG.threshold) || 3;  // 星标阈值，随后端快照更新
+
   function sortRows(list) {
     if (!sortKey) return list;
     const dir = sortAsc ? 1 : -1;
@@ -44,16 +52,16 @@
     }
     body.innerHTML = visible.map(r => {
       const c = cls(r.direction);
-      const star = (r.pct !== null && Math.abs(r.pct) >= 3) ? '<span class="star">★</span>' : '';
+      const star = (r.pct !== null && Math.abs(r.pct) >= threshold) ? '<span class="star">★</span>' : '';
       return '<tr>' +
-        '<td>' + r.code + '</td>' +
-        '<td>' + (r.name || '--') + '</td>' +
+        '<td>' + escapeHtml(r.code) + '</td>' +
+        '<td>' + escapeHtml(r.name || '--') + '</td>' +
         '<td class="num ' + c + '">' + fmt(r.price) + '</td>' +
         '<td class="num ' + c + '">' + fmt(r.pct, '%') + '</td>' +
         '<td class="num ' + c + '">' + fmt(r.chg) + '</td>' +
         '<td class="num">' + star + '</td>' +
-        '<td class="num"><canvas class="spark" width="96" height="24" data-spark="' + r.code + '"></canvas></td>' +
-        '<td class="num"><button class="link-btn" data-remove="' + r.code + '">移除</button></td>' +
+        '<td class="num"><canvas class="spark" width="96" height="24" data-spark="' + escapeHtml(r.code) + '"></canvas></td>' +
+        '<td class="num"><button class="link-btn" data-remove="' + escapeHtml(r.code) + '">移除</button></td>' +
         '</tr>';
     }).join('');
   }
@@ -102,8 +110,8 @@
     }
     alertList.innerHTML = alerts.map(a => {
       const c = a.pct > 0 ? 'up' : 'down';
-      return '<li class="' + c + '"><strong>' + a.time + '</strong><br>' +
-        a.name + '(' + a.code + ') ' + a.kind + ' ' +
+      return '<li class="' + c + '"><strong>' + escapeHtml(a.time) + '</strong><br>' +
+        escapeHtml(a.name) + '(' + escapeHtml(a.code) + ') ' + escapeHtml(a.kind) + ' ' +
         Number(a.pct).toFixed(2) + '% · 现价 ' + fmt(a.price) + '</li>';
     }).join('');
   }
@@ -114,8 +122,8 @@
       return;
     }
     watchlistEl.innerHTML = codes.map(c =>
-      '<li class="chip">' + c +
-      ' <button class="chip-x" data-remove="' + c + '" title="移除">×</button></li>').join('');
+      '<li class="chip">' + escapeHtml(c) +
+      ' <button class="chip-x" data-remove="' + escapeHtml(c) + '" title="移除">×</button></li>').join('');
   }
 
   function flash(text, ok) {
@@ -164,6 +172,7 @@
 
   function apply(data) {
     rows = data.quotes || [];
+    if (typeof data.threshold === 'number' && data.threshold > 0) threshold = data.threshold;
     pillSource.textContent = '数据源 ' + (data.source || '--');
     pillTime.textContent = '更新 ' + (data.time || '--');
     banner.classList.toggle('hidden', !data.error);
@@ -236,7 +245,7 @@
     const history = data.history || [];
     if (!history.length) { alertList.innerHTML = '<li class="empty">日志里还没有记录</li>'; return; }
     alertList.innerHTML = history.slice().reverse().map(line =>
-      '<li>' + line + '</li>').join('');
+      '<li>' + escapeHtml(line) + '</li>').join('');
   });
 
   document.getElementById('btn-clear').addEventListener('click', async function () {

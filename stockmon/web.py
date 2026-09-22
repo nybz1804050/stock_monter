@@ -21,6 +21,9 @@ from .storage import open_store
 
 log = logging.getLogger(__name__)
 
+# 单次历史查询的返回条数上限：防止 limit 传入超大值把整张表拉进内存。
+HISTORY_LIMIT_MAX = 2000
+
 
 class QuoteService:
     """后台轮询行情并缓存结果；线程安全（只用一个锁保护快照）。"""
@@ -118,6 +121,7 @@ class QuoteService:
                 "time": self._updated_at,
                 "source": self.manager.name,
                 "interval": self.interval,
+                "threshold": self.tracker.threshold,   # 前端星标用它，避免再写死一个 3
                 "error": self._error,
                 "quotes": [q.to_dict() for q in self._quotes],
                 "alerts": self.tracker.as_list()[:50],
@@ -208,9 +212,16 @@ def create_app(base_dir: str = None, interval: float = None,
     def api_history():
         """某只股票最近的价格序列（默认 120 条），用于前端走势图。"""
         code = (request.args.get("code") or "").strip()
-        limit = int(request.args.get("limit") or 120)
         if not watchlist.is_valid_code(code):
             return jsonify({"ok": False, "error": "code 必须是 6 位数字"}), 400
+        # limit 以前直接 int() 转换：非数字会抛 ValueError（500），超大值会一次拉爆内存。
+        try:
+            limit = int(request.args.get("limit") or 120)
+        except (TypeError, ValueError):
+            return jsonify({"ok": False, "error": "limit 必须是整数"}), 400
+        if limit < 1:
+            return jsonify({"ok": False, "error": "limit 必须大于 0"}), 400
+        limit = min(limit, HISTORY_LIMIT_MAX)
         store = service.store
         if store is None:
             return jsonify({"ok": False, "error": "历史存储未启用"}), 503

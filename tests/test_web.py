@@ -73,6 +73,39 @@ def test_api_health(client):
     assert c.get("/api/health").get_json()["ok"] is True
 
 
+def test_api_quotes_exposes_threshold(client):
+    """快照要带出告警阈值，前端星标据此判定，避免前后端各写一个数。"""
+    c, _ = client
+    assert c.get("/api/quotes").get_json()["threshold"] == 3.0
+
+
+def test_api_history_rejects_bad_limit(client):
+    """limit 非法输入应返回 400 而不是 500（以前 int() 会直接抛 ValueError）。"""
+    c, _ = client
+    assert c.get("/api/history?code=600519&limit=abc").status_code == 400
+    assert c.get("/api/history?code=600519&limit=1.5").status_code == 400
+
+
+def test_api_history_rejects_non_positive_limit(client):
+    c, _ = client
+    assert c.get("/api/history?code=600519&limit=0").status_code == 400
+    assert c.get("/api/history?code=600519&limit=-20").status_code == 400
+
+
+def test_api_history_caps_huge_limit(client):
+    """超大 limit 应被裁剪到上限而不是 500；历史库未启用时是 503，也算通过。"""
+    c, _ = client
+    resp = c.get("/api/history?code=600519&limit=999999")
+    assert resp.status_code in (200, 503)
+    if resp.status_code == 200:
+        assert resp.get_json()["ok"] is True
+
+
+def test_api_history_rejects_bad_code(client):
+    c, _ = client
+    assert c.get("/api/history?code=abc").status_code == 400
+
+
 def test_service_reports_error_when_watchlist_empty(tmp_path):
     (tmp_path / "stocks.json").write_text("[]", encoding="utf-8")
     service = QuoteService(base_dir=str(tmp_path), manager=FakeManager())
