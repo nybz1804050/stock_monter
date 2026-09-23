@@ -8,3 +8,5 @@ venv/
 # 运行期产物
 alerts.log
 stocks.json
+# 行情历史库：跑起来就会变，不该进版本库（先例见 c4c6a31）
+quotes.db
