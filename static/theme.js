@@ -20,12 +20,10 @@
     } catch (e) { /* 存不了就只在本次会话生效 */ }
   }
 
-  function systemPrefersLight() {
-    return !!(window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches);
-  }
-
   function current() {
-    return read() || (systemPrefersLight() ? 'light' : 'dark');
+    // 默认深色：沿用项目原有视觉，不因系统浅色主题而"突然变样"；
+    // 用户点过切换按钮后按 localStorage 的记忆走。
+    return read() || 'dark';
   }
 
   function apply(theme) {

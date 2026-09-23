@@ -18,6 +18,7 @@
 
   const fmt = (v, suffix) => (v === null || v === undefined) ? '--' : Number(v).toFixed(2) + (suffix || '');
   const history = {};        // code -> 最近价格序列（稀疏更新，避免频繁请求）
+  const ma5 = {};            // code -> 5 日均线，来自 /api/indicators，与 history 等长
   const cls = (direction) => direction === 'up' ? 'up' : direction === 'down' ? 'down' : 'flat';
 
   /* 所有拼进 innerHTML 的动态内容都要先转义：股票名来自外部接口、告警日志来自本地文件，
@@ -68,36 +69,62 @@
 
   function drawSparks() {
     document.querySelectorAll('canvas[data-spark]').forEach(function (cv) {
-      const points = history[cv.getAttribute('data-spark')] || [];
+      const code = cv.getAttribute('data-spark');
+      const points = history[code] || [];
       const ctx = cv.getContext('2d');
       const w = cv.width, h = cv.height;
       ctx.clearRect(0, 0, w, h);
       if (points.length < 2) return;
-      const prices = points.map(p => p.price).filter(v => v !== null && v !== undefined);
-      if (prices.length < 2) return;
-      const min = Math.min.apply(null, prices), max = Math.max.apply(null, prices);
+
+      const prices = points.map(p => p.price);
+      const vals = prices.filter(v => v !== null && v !== undefined);
+      if (vals.length < 2) return;
+
+      // 均线与价格共用同一坐标系，否则"价格在均线上还是下"就看不出来了
+      const ma = (ma5[code] || []).filter(v => v !== null && v !== undefined);
+      const all = vals.concat(ma);
+      const min = Math.min.apply(null, all), max = Math.max.apply(null, all);
       const span = (max - min) || 1;
-      const rising = prices[prices.length - 1] >= prices[0];
-      ctx.strokeStyle = rising ? '#ff5b5b' : '#35c46a';
-      ctx.lineWidth = 1.5;
-      ctx.beginPath();
-      prices.forEach(function (v, i) {
-        const x = (i / (prices.length - 1)) * (w - 2) + 1;
-        const y = h - 2 - ((v - min) / span) * (h - 4);
-        if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
-      });
-      ctx.stroke();
+      const n = prices.length;
+      const xAt = (i) => (i / (n - 1)) * (w - 2) + 1;
+      const yAt = (v) => h - 2 - ((v - min) / span) * (h - 4);
+
+      function drawLine(values, color, width, dash) {
+        if (values.length < 2) return;
+        ctx.save();
+        ctx.strokeStyle = color;
+        ctx.lineWidth = width;
+        if (dash) ctx.setLineDash(dash);
+        ctx.beginPath();
+        let started = false;
+        values.forEach(function (v, i) {
+          if (v === null || v === undefined) { started = false; return; }   // 断点不连线
+          if (!started) { ctx.moveTo(xAt(i), yAt(v)); started = true; }
+          else { ctx.lineTo(xAt(i), yAt(v)); }
+        });
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      const rising = vals[vals.length - 1] >= vals[0];
+      drawLine(ma5[code] || [], '#8b97ad', 1, [3, 2]);          // 均线先画，压在价格线之下
+      drawLine(prices, rising ? '#ff5b5b' : '#35c46a', 1.5);
     });
   }
 
   async function refreshHistory() {
     const codes = rows.map(r => r.code);
     for (const code of codes) {
-      try {
-        const resp = await fetch('/api/history?code=' + code + '&limit=60', { cache: 'no-store' });
-        const data = await resp.json();
-        if (data.ok) history[code] = data.points || [];
-      } catch (e) { /* 忽略，保留下一次机会 */ }
+      // 价格序列与 5 日均线并行拉取；均线拿不到（如历史库未启用）不影响走势图本身
+      const [hist, ind] = await Promise.all([
+        fetch('/api/history?code=' + code + '&limit=60', { cache: 'no-store' })
+          .then(r => r.json()).catch(() => null),
+        fetch('/api/indicators?code=' + code + '&name=sma&window=5&limit=60',
+              { cache: 'no-store' })
+          .then(r => r.json()).catch(() => null),
+      ]);
+      if (hist && hist.ok) history[code] = hist.points || [];
+      if (ind && ind.ok && ind.series && ind.series.values) ma5[code] = ind.series.values;
     }
     drawSparks();
   }
@@ -254,5 +281,7 @@
   });
 
   loadWatchlist();
-  tick();
+  // 行情就绪后立刻拉一次历史与均线：refreshHistory 依赖 rows 里的代码列表，
+  // 若只靠 setInterval，首次要等满 60 秒，这段时间走势图是空白的。
+  tick().then(function () { refreshHistory(); });
 })();

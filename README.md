@@ -8,6 +8,9 @@
 - **双数据源自动切换**：主源东方财富（偶尔限流/封 IP），备源腾讯行情；连续失败 2 次自动切换，恢复后自动切回；单个源内部对瞬时网络错误做重试 + 线性退避。
 - **浏览器看板**：表格展示代码/名称/现价/涨跌幅/涨跌额，涨红跌绿，支持按代码或名称筛选，**点击表头可排序**。
 - **迷你走势图**：每行绘制最近 60 个价格点的走势线（涨红跌绿），数据来自本地 SQLite 历史库。
+- **均线叠加**：走势图上叠加 **MA5**（灰色虚线）。两者共用同一坐标系，一眼看出价格在均线上还是下；
+  均线取自 `/api/indicators`，取不到时自动只画价格线，不影响走势图本身。
+- **深色 / 亮色主题**：右上角按钮一键切换，选择记在浏览器里，**默认深色**。
 - **实时推送**：服务端 SSE（`/api/stream`）推送每轮行情，前端断线自动退回定时轮询。
 - **页面内管理自选股**：输入 6 位代码即可添加，标签或行情行上点「移除」即删除，改动落盘到 `stocks.json`。
 - **涨跌幅告警**：涨跌幅超过阈值（默认 ±3%）时打星标、写入 `alerts.log`，网页右侧实时显示，支持查看历史与清空。
@@ -26,14 +29,15 @@ stock_monter/
 │   ├── datasource.py       # 东财/腾讯数据源、自动切换与重试
 │   ├── watchlist.py        # 自选股读写与校验
 │   ├── alerts.py           # 涨跌幅告警
+│   ├── indicators.py       # 技术指标（SMA/EMA/RSI/MACD/布林带）
 │   ├── storage.py          # SQLite 行情历史
 │   ├── config.py           # 配置加载（默认值/文件/环境变量）
 │   └── web.py              # Flask 应用、JSON 接口与 SSE
 ├── config.example.json     # 配置示例
 ├── Dockerfile              # 容器化部署
 ├── templates/index.html    # 看板页面
-├── static/                 # 页面样式与脚本
-├── tests/                  # 离线单元测试（pytest，45 个用例）
+├── static/                 # 样式与脚本（base/components/theme 三层 CSS + theme.js）
+├── tests/                  # 离线单元测试（pytest，83 个用例）
 ├── pyproject.toml          # ruff / pytest 配置
 ├── .github/workflows/ci.yml# CI：lint + 测试
 ├── stocks.txt              # 自选股（旧格式，只读兼容）
@@ -87,6 +91,9 @@ python stock_monitor.py --threshold 5 # 告警阈值
 | DELETE | `/api/watchlist/<code>` | 移除自选股 |
 | GET | `/api/alerts?history=1` | 告警列表；带 `history=1` 时附带日志历史 |
 | DELETE | `/api/alerts` | 清空会话内告警 |
+| GET | `/api/stream` | SSE 实时推送：每轮刷新推一帧快照，15 秒无数据发一次心跳 |
+| GET | `/api/history` | 某只股票最近的价格序列（`code` 必填、`limit` 默认 120），用于走势图 |
+| GET | `/api/indicators` | 技术指标：`code`、`name`（sma/ema/rsi/boll/macd）、`window` 等；非法参数返回 400 |
 | GET | `/api/health` | 健康检查（是否取到行情、当前数据源） |
 
 ## 配置
@@ -115,7 +122,7 @@ docker run -d -p 8000:8000 -v $(pwd)/data:/app/data stock-monter
 ## 开发
 
 ```bash
-python -m pytest tests -q     # 45 个离线用例：解析、数据源切换/重试、自选股、告警、历史、配置、接口
+python -m pytest tests -q     # 83 个离线用例：解析、数据源、自选股、告警、历史、配置、接口、指标、Web
 ruff check .                  # 代码规范检查（pyproject.toml 配置）
 ```
 
